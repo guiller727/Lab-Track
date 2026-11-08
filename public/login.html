@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabTrack · Log in</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-box">
+  <h1 class="brand">LabTrack</h1>
+  <p class="tagline">Laboratory equipment management</p>
+  <section>
+    <div class="tabs">
+      <button type="button" id="tabLogin" class="active">Log in</button>
+      <button type="button" id="tabRegister">Student sign up</button>
+    </div>
+    <p id="msg" class="msg" role="status"></p>
+
+    <form id="loginForm">
+      <label>Username <input id="loginUser" required autocomplete="username"></label>
+      <label>Password <input id="loginPass" type="password" required autocomplete="current-password"></label>
+      <button class="primary" type="submit">Log in</button>
+      <p class="hint">Demo: admin / admin123 &nbsp;or&nbsp; student / student123</p>
+    </form>
+
+    <form id="registerForm" hidden>
+      <label>Full name <input id="regName" required maxlength="100"></label>
+      <label>Username <input id="regUser" required maxlength="50" autocomplete="username"></label>
+      <label>Password (6+ characters) <input id="regPass" type="password" required minlength="6" autocomplete="new-password"></label>
+      <button class="primary" type="submit">Create student account</button>
+    </form>
+  </section>
+</div>
+<script src="common.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

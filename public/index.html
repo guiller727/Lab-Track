@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabTrack · Equipment</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="header"></header>
+
+<main>
+  <!-- Admin only: add / edit equipment -->
+  <section id="adminPanel" hidden>
+    <h2 id="formTitle">Add equipment</h2>
+    <form id="equipForm">
+      <input type="hidden" id="equipId">
+      <label>Name <input id="name" required maxlength="100"></label>
+      <label>Category <input id="category" required maxlength="50" placeholder="e.g. Optics"></label>
+      <label>Location <input id="location" maxlength="100" placeholder="e.g. Lab 1"></label>
+      <label>Condition
+        <select id="condition"><option>Good</option><option>Fair</option><option>Needs repair</option></select>
+      </label>
+      <label>Total quantity <input id="total" type="number" min="0" inputmode="numeric" required></label>
+      <label>Available quantity <input id="available" type="number" min="0" inputmode="numeric" required></label>
+      <label class="full">Description <textarea id="description" rows="2" maxlength="255"></textarea></label>
+      <div class="actions full">
+        <button class="primary" type="submit" id="saveBtn">Add equipment</button>
+        <button type="button" id="cancelBtn" hidden>Cancel edit</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Student only: send a borrow request -->
+  <section id="requestPanel" hidden>
+    <h2>Request equipment</h2>
+    <form id="requestForm">
+      <input type="hidden" id="reqItemId">
+      <label class="full">Equipment <input id="reqItemName" readonly placeholder="Tap Request on an item below"></label>
+      <label class="full">Reason <textarea id="reqReason" rows="2" maxlength="255" required placeholder="e.g. Physics lab activity on Friday"></textarea></label>
+      <label>Quantity <input id="reqQty" type="number" min="1" inputmode="numeric" required></label>
+      <label>Needed until <input id="reqDate" type="date" required></label>
+      <div class="actions full">
+        <button class="primary" type="submit">Send request</button>
+        <button type="button" id="reqClear">Clear</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="responsive">
+    <h2>Equipment</h2>
+    <p id="msg" class="msg" role="status"></p>
+    <div class="filters">
+      <input id="search" type="search" placeholder="Search by name" aria-label="Search by name">
+      <select id="filterCategory" aria-label="Filter by category"><option value="">All categories</option></select>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Category</th><th>Location</th><th>Available</th><th>Condition</th><th>Status</th><th></th></tr></thead>
+      <tbody id="equipList"></tbody>
+    </table>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="equipment.js"></script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+/* ================== LabTrack styles ================== */
+:root { --navy:#14304a; --blue:#2563eb; --line:#d9e2ec; --bg:#f1f5f9; --ok:#157347; --bad:#b42318; --muted:#5b6b7b; }
+* { box-sizing: border-box; }
+body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--navy); line-height:1.45; }
+[hidden] { display:none !important; }
+
+/* ----- Header: brand on the left, tabs in the CENTER, user on the right ----- */
+header { background:var(--navy); color:#fff; padding:10px 20px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; }
+.brand { margin:0; font-size:1.3rem; letter-spacing:.5px; }
+nav { display:flex; gap:4px; background:rgba(255,255,255,.12); padding:4px; border-radius:99px; }
+nav a { color:#fff; text-decoration:none; padding:8px 20px; border-radius:99px; font-size:.95rem; }
+nav a:hover { background:rgba(255,255,255,.15); }
+nav a.current { background:#fff; color:var(--navy); font-weight:700; }
+.userbox { justify-self:end; display:flex; align-items:center; gap:10px; font-size:.9rem; }
+.userbox button { background:transparent; color:#fff; border-color:rgba(255,255,255,.5); min-height:36px; padding:6px 12px; }
+.userbox button:hover { background:rgba(255,255,255,.15) !important; }
+.role { background:#fff; color:var(--navy); padding:2px 10px; border-radius:99px; font-size:.8rem; font-weight:700; }
+
+/* ----- Page layout ----- */
+main { max-width:1000px; margin:24px auto; padding:0 16px; display:grid; gap:16px; }
+section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(20,48,74,.06); }
+h2 { margin:0 0 14px; font-size:1.1rem; }
+
+/* ----- Forms and buttons ----- */
+form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+label { display:grid; gap:4px; font-size:.85rem; font-weight:600; }
+.full { grid-column:1 / -1; }
+input, select, textarea, button { font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:8px; min-height:44px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline:3px solid #93b4f8; outline-offset:1px; }
+button { cursor:pointer; background:#fff; color:var(--navy); }
+button:hover:not(:disabled) { background:#eef3f8; }
+button:disabled { opacity:.5; cursor:not-allowed; }
+button.primary { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
+button.primary:hover:not(:disabled) { background:#1d4ed8; }
+button.danger { color:var(--bad); }
+button.good { color:var(--ok); }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.filters { display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:14px; }
+
+/* ----- Tables ----- */
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:12px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+th { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+.row-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.empty { text-align:center; color:var(--muted); padding:28px 0; }
+
+/* ----- Status badges ----- */
+.badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:.8rem; font-weight:600; }
+.ok, .resolved { background:#e3f4ea; color:var(--ok); }
+.none, .rejected, .overdue { background:#fde8e6; color:var(--bad); }
+.pending { background:#fff4d6; color:#8a5a00; }
+.approved { background:#e0ebff; color:#1d4ed8; }
+.returned { background:#e8edf2; color:var(--muted); }
+.damaged { background:#ffe9d6; color:#9a3412; }
+
+/* ----- Messages, paging, dashboard cards ----- */
+.msg { min-height:1.4em; font-weight:600; margin:0 0 8px; }
+.msg.error { color:var(--bad); }
+.msg.success { color:var(--ok); }
+.hint { font-size:.85rem; color:var(--muted); margin:0 0 8px; }
+.pager { display:flex; justify-content:center; align-items:center; gap:16px; margin-top:16px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; }
+.stat { border:1px solid var(--line); border-radius:10px; padding:14px; background:#f9fbfd; text-align:center; }
+.stat b { display:block; font-size:1.7rem; }
+.stat span { font-size:.8rem; color:var(--muted); }
+
+/* ----- Login page ----- */
+.login-box { max-width:400px; margin:48px auto; padding:0 16px; text-align:center; }
+.login-box .brand { font-size:2rem; }
+.login-box form { grid-template-columns:1fr; text-align:left; }
+.tagline { color:var(--muted); margin:4px 0 20px; }
+.tabs { display:flex; gap:8px; margin-bottom:16px; }
+.tabs button { flex:1; }
+.tabs button.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+.password-wrap { position:relative; }
+.password-wrap input { width:100%; padding-right:46px; }
+.eye { position:absolute; top:0; right:0; width:44px; height:100%; min-height:0; padding:0; border:0; background:transparent; color:var(--muted); display:grid; place-items:center; }
+.eye .slash { display:none; }
+.eye.on .slash { display:inline; }
+
+/* ----- Phones: header stacks, tables become cards ----- */
+@media (max-width:700px) {
+  header { grid-template-columns:1fr; justify-items:center; text-align:center; }
+  .userbox { justify-self:center; }
+  form, .filters { grid-template-columns:1fr; }
+  thead { display:none; }
+  .responsive table, .responsive tbody, .responsive tr, .responsive td { display:block; width:100%; }
+  .responsive tr { border:1px solid var(--line); border-radius:10px; padding:8px; margin-bottom:10px; }
+  .responsive td { border:0; padding:4px; display:flex; justify-content:space-between; gap:12px; }
+  .responsive td::before { content:attr(data-label); font-weight:600; color:var(--muted); }
+  .responsive td.row-actions { justify-content:flex-start; padding-top:8px; }
+  .responsive td.row-actions::before { content:none; }
+  .responsive td.row-actions button { flex:1; }
+  .responsive td.empty { display:block; }
+  .responsive td.empty::before { content:none; }
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabTrack · Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="header"></header>
+<main>
+  <section>
+    <h2>Overview</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="responsive">
+    <h2>History</h2>
+    <p id="msg" class="msg" role="status"></p>
+    <table>
+      <thead><tr><th>Equipment</th><th>Qty</th><th>Borrower</th><th>Reason</th><th>Requested</th><th>Return by</th><th>Result</th></tr></thead>
+      <tbody id="historyList"></tbody>
+    </table>
+    <div class="pager" id="pager"></div>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
