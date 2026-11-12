@@ -170,6 +170,18 @@ tbody tr:hover { background: #f8fafc; }
 .eye .slash { display: none; }
 .eye.on .slash { display: inline; }
 
+/* ----- Forgot-password pop-up ----- */
+dialog.modal { border: 0; border-radius: 14px; padding: 28px; width: min(420px, calc(100vw - 32px)); box-shadow: 0 30px 70px rgba(5, 12, 40, 0.5); }
+dialog.modal::backdrop { background: rgba(15, 23, 42, 0.6); }
+dialog.modal h2 { text-align: center; font-size: 1.5rem; color: var(--primary); margin: 0 0 8px; }
+dialog.modal .msg { text-align: center; }
+dialog.modal .auth-link { display: block; margin: 16px auto 0; }
+.center { text-align: center; }
+.auth-link { background: none; border: 0; min-height: 0; padding: 4px; color: var(--primary); font-weight: 600; font-size: 0.85rem; cursor: pointer; justify-self: center; }
+.auth-link:hover { background: none !important; text-decoration: underline; }
+label.btn-pill { cursor: pointer; }
+input.sr-only:focus-visible + * , .sr-only:focus-visible { outline: none; }
+
 /* ----- 404 page ----- */
 .notfound { background: #fff; border-radius: 14px; padding: 40px 32px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 30px 70px rgba(5, 12, 40, 0.5); }
 .notfound .brand-logo { margin: 0 auto 12px; height: 64px; }
