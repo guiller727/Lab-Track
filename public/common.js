@@ -85,9 +85,9 @@ function setupPage() {
 }
 
 // ---------- Small UI helpers ----------
-function say(text, type) {                     // shows a message in <p id="msg">
-  $("msg").textContent = text;
-  $("msg").className = "msg " + (type || "");
+function say(text, type, boxId = "msg") {      // shows a message in <p id="msg"> (or another box)
+  $(boxId).textContent = text;
+  $(boxId).className = "msg " + (type || "");
 }
 
 function makeButton(text, className, onClick) {
