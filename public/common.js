@@ -9,6 +9,10 @@ const NAV = {
   student: [["Equipment", "index.html"], ["Requests", "requests.html"], ["History", "history.html"]],
 };
 
+// ---------- Not logged in? Leave BEFORE the page is drawn (this file loads in <head>) ----------
+const ON_LOGIN_PAGE = ["/", "/login.html"].includes(window.location.pathname);
+if (!ON_LOGIN_PAGE && !sessionStorage.getItem("token")) window.location.replace("/login.html");
+
 // ---------- Session ----------
 // sessionStorage is wiped automatically when the tab or browser is closed.
 function getToken() { return sessionStorage.getItem("token"); }
@@ -17,7 +21,7 @@ function getUser() {
 }
 function logout(reason) {
   sessionStorage.clear();
-  window.location.href = "login.html" + (reason === "idle" ? "?reason=idle" : "");
+  window.location.href = "/login.html" + (reason === "idle" ? "?reason=idle" : "");
 }
 
 // fetch() that sends the login token and returns the JSON (or throws the server's message).
@@ -28,7 +32,11 @@ async function api(url, options = {}) {
   });
   if (response.status === 401 && getToken()) { logout(); throw new Error("Please log in."); }
   const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Request failed");
+  if (!response.ok) {
+    const error = new Error(result.message || "Request failed");
+    error.status = response.status;   // e.g. 409 = already exists
+    throw error;
+  }
   return result;
 }
 
@@ -62,7 +70,7 @@ function setupPage() {
 
   // Header: brand | tabs (centered) | user box. Only fixed text goes in here.
   $("header").innerHTML = `
-    <h1 class="brand">LabTrack</h1>
+    <div class="brand-row"><img class="brand-logo" src="/images/logo.webp" alt="University of Perpetual Help System logo"> LabTrack</div>
     <nav>${tabs.map(([label, file]) => `<a href="${file}"${file === here ? ' class="current"' : ""}>${label}</a>`).join("")}</nav>
     <div class="userbox">
       <span id="userName"></span>
@@ -72,6 +80,7 @@ function setupPage() {
   $("userName").textContent = user.name;       // textContent keeps names safe
   $("userRole").textContent = user.role === "admin" ? "Admin" : "Student";
   $("logoutBtn").addEventListener("click", () => logout());
+  document.body.classList.add("ready");     // login is confirmed: now show the page
   return user;
 }
 
