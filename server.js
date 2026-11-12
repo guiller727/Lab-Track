@@ -6,6 +6,16 @@ const jwt = require("jsonwebtoken");
 const path = require("path");
 const fs = require("fs");
 
+// Local settings: if a ".env" file exists next to server.js, read its KEY=value lines.
+// On Railway there is no .env file; its "Variables" tab fills process.env instead.
+const envFile = path.join(__dirname, ".env");
+if (fs.existsSync(envFile)) {
+  fs.readFileSync(envFile, "utf8").split(/\r?\n/).forEach((line) => {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  });
+}
+
 const app = express();
 app.use(express.json());                                      // read JSON sent by the browser
 
@@ -102,6 +112,42 @@ app.post("/api/auth/register", wrap(async (req, res) => {
 app.get("/api/auth/username-available", wrap(async (req, res) => {
   const [rows] = await pool.execute("SELECT user_id FROM users WHERE username = ?", [String(req.query.username || "").trim()]);
   res.json({ available: rows.length === 0 });
+}));
+
+// ----- Forgot password: the user uploads a .key file whose text must equal RESET_KEY -----
+let wrongKeys = 0;                       // slows down guessing: 10 wrong keys, then wait 15 minutes
+let wrongKeysSince = Date.now();
+function checkResetKey(text) {
+  if (!process.env.RESET_KEY) throw httpError(503, "Password reset is not set up on this server.");
+  if (Date.now() - wrongKeysSince > 15 * 60 * 1000) { wrongKeys = 0; wrongKeysSince = Date.now(); }
+  if (wrongKeys >= 10) throw httpError(429, "Too many wrong keys. Try again in 15 minutes.");
+  const key = String(text || "").replace(/^\uFEFF/, "").trim();   // Notepad may add a hidden mark and a new line
+  if (key !== process.env.RESET_KEY) {
+    wrongKeys++;
+    throw httpError(403, "That key file is not valid.");
+  }
+}
+
+// Step 1: is the uploaded key correct? (lets the page move on to the new-password form)
+app.post("/api/auth/check-key", wrap(async (req, res) => {
+  checkResetKey(req.body.key);
+  res.json({ ok: true });
+}));
+
+// Step 2: the key is checked AGAIN here, then the password is replaced.
+app.post("/api/auth/reset-password", wrap(async (req, res) => {
+  checkResetKey(req.body.key);
+  const username = String(req.body.username || "").trim();
+  const newPassword = String(req.body.new_password || "");
+  if (!username) return res.status(400).json({ message: "Enter the username." });
+  if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters." });
+
+  const [rows] = await pool.execute("SELECT user_id FROM users WHERE username = ?", [username]);
+  if (rows.length === 0) return res.status(404).json({ message: "No account with that username." });
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  await pool.execute("UPDATE users SET password_hash = ? WHERE user_id = ?", [hash, rows[0].user_id]);
+  res.json({ message: "Password updated. You can log in now." });
 }));
 
 app.post("/api/auth/login", wrap(async (req, res) => {
