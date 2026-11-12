@@ -27,18 +27,18 @@
 <script src="/common.js"></script>
 </head>
 <body class="auth-body">
-<div class="auth-shell">
+<!-- data-mode is "login" or "register". CSS slides the blue panel and fades the forms when it changes. -->
+<div class="auth-shell" id="authShell" data-mode="login">
 
-  <!-- Blue side panel: swaps its message between Sign in and Register -->
   <aside class="auth-panel">
     <div class="brand-row"><img class="brand-logo" src="/images/logo.webp" alt="University of Perpetual Help System logo"> LabTrack</div>
-    <div>
-      <div class="auth-panel-body" id="panelLogin">
+    <div class="auth-panel-bodies">
+      <div class="auth-panel-body for-login">
         <h1>Hello, Student!</h1>
         <p>New to LabTrack? Create an account to start borrowing laboratory equipment.</p>
         <button type="button" class="btn-pill btn-pill-outline" id="toRegister">Register</button>
       </div>
-      <div class="auth-panel-body" id="panelRegister" hidden>
+      <div class="auth-panel-body for-register">
         <h1>Welcome Back!</h1>
         <p>Already have an account? Sign in to continue.</p>
         <button type="button" class="btn-pill btn-pill-outline" id="toLogin">Sign In</button>
@@ -47,11 +47,11 @@
     <p class="auth-panel-foot">Laboratory Equipment Management</p>
   </aside>
 
-  <section class="auth-box">
-    <h2 class="auth-title" id="authTitle">Sign In to LabTrack</h2>
-    <p class="auth-sub" id="authSub">Use your username and password</p>
-    <p id="msg" class="msg" role="status"></p>
-
+  <!-- Sign in -->
+  <section class="auth-box auth-box-login">
+    <h2 class="auth-title">Sign In to LabTrack</h2>
+    <p class="auth-sub">Use your username and password</p>
+    <p id="loginMsg" class="msg" role="status"></p>
     <form id="loginForm" class="auth-form">
       <div class="form-group">
         <label for="loginUser" class="sr-only">Username</label>
@@ -69,8 +69,14 @@
       </div>
       <button class="btn-pill btn-pill-primary" type="submit">Log In</button>
     </form>
+  </section>
 
-    <form id="registerForm" class="auth-form" hidden>
+  <!-- Register -->
+  <section class="auth-box auth-box-register">
+    <h2 class="auth-title">Create Account</h2>
+    <p class="auth-sub">Student accounts only</p>
+    <p id="regMsg" class="msg" role="status"></p>
+    <form id="registerForm" class="auth-form">
       <div class="form-group">
         <label for="regName" class="sr-only">Full name</label>
         <div class="input-icon">
