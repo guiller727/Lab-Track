@@ -63,6 +63,53 @@ $("registerForm").addEventListener("submit", async (event) => {
   }
 });
 
+// ----- Forgot password: upload the .key file, then choose a new password -----
+let keyText = "";                               // the text inside the uploaded file (kept only in memory)
+
+function openResetDialog() {
+  keyText = "";
+  $("keyFile").value = "";
+  $("resetForm").reset();
+  $("resetStep1").hidden = false;               // show step 1 (upload)
+  $("resetForm").hidden = true;                 // hide step 2 (new password)
+  say("", "", "resetMsg");
+  $("resetDialog").showModal();
+}
+$("forgotBtn").addEventListener("click", openResetDialog);
+$("resetClose").addEventListener("click", () => $("resetDialog").close());
+
+// Step 1: a file was chosen. Ask the server if the key inside it is correct.
+$("keyFile").addEventListener("change", async () => {
+  const file = $("keyFile").files[0];
+  if (!file) return;
+  if (file.size > 1024) { say("That file is too big to be a key file.", "error", "resetMsg"); return; }
+  keyText = await file.text();
+  try {
+    await api("/api/auth/check-key", { method: "POST", body: JSON.stringify({ key: keyText }) });
+    say("Key accepted. Choose a new password.", "success", "resetMsg");
+    $("resetStep1").hidden = true;
+    $("resetForm").hidden = false;
+    $("resetUser").focus();
+  } catch (error) {
+    say(error.message, "error", "resetMsg");
+    $("keyFile").value = "";                    // let them pick another file
+  }
+});
+
+// Step 2: send username + new password (the key is checked again on the server).
+$("resetForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if ($("resetPass").value !== $("resetPass2").value) { say("The two passwords do not match.", "error", "resetMsg"); return; }
+  try {
+    const result = await api("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ key: keyText, username: $("resetUser").value, new_password: $("resetPass").value }),
+    });
+    $("resetDialog").close();
+    say(result.message, "success", "loginMsg");
+  } catch (error) { say(error.message, "error", "resetMsg"); }
+});
+
 // ----- Eye button: show / hide the password -----
 const EYE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
   stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
