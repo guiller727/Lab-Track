@@ -4,9 +4,21 @@ const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 app.use(express.json());                                      // read JSON sent by the browser
+
+// The login page is also the home page ("/"), so nobody sees a private page before logging in.
+// Link previews (Facebook, Messenger...) need a FULL image address, so we fill in this
+// website's own address wherever login.html says __SITE__.
+const loginPage = fs.readFileSync(path.join(__dirname, "public", "login.html"), "utf8");
+app.get(["/", "/login.html"], (req, res) => {
+  const proto = String(req.headers["x-forwarded-proto"] || req.protocol).split(",")[0];
+  const host = String(req.get("host")).replace(/[^a-zA-Z0-9.:-]/g, "");   // keep only safe characters
+  res.type("html").send(loginPage.split("__SITE__").join(proto + "://" + host));
+});
+
 app.use(express.static(path.join(__dirname, "public")));      // serve the website files
 
 const SECRET = process.env.JWT_SECRET || "change-this-secret-before-defense";
@@ -17,7 +29,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || process.env.MYSQLHOST || "localhost",
   port: process.env.DB_PORT || process.env.MYSQLPORT || 3306,
   user: process.env.DB_USER || process.env.MYSQLUSER || "root",
-  password: process.env.DB_PASS || process.env.MYSQLPASSWORD || "", 
+  password: process.env.DB_PASS || process.env.MYSQLPASSWORD || "password", // local default. Remove before pushing to GitHub!
   database: process.env.DB_NAME || "labtrack",
 });
 
@@ -73,12 +85,23 @@ app.post("/api/auth/register", wrap(async (req, res) => {
   if (password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters." });
 
   const [existing] = await pool.execute("SELECT user_id FROM users WHERE username = ?", [username.trim()]);
-  if (existing.length > 0) return res.status(409).json({ message: "Username is already taken." });
+  if (existing.length > 0) return res.status(409).json({ message: "That username is already taken." });
 
   const hash = await bcrypt.hash(password, 10);   // never store the plain password
-  await pool.execute("INSERT INTO users (name, username, password_hash, role) VALUES (?, ?, ?, 'student')",
-    [name.trim(), username.trim(), hash]);          // public sign-up is always a STUDENT
+  try {
+    await pool.execute("INSERT INTO users (name, username, password_hash, role) VALUES (?, ?, ?, 'student')",
+      [name.trim(), username.trim(), hash]);        // public sign-up is always a STUDENT
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "That username is already taken." });
+    throw err;
+  }
   res.status(201).json({ message: "Account created. You can log in now." });
+}));
+
+// Lets the sign-up form flag a duplicate username as soon as the student leaves the box.
+app.get("/api/auth/username-available", wrap(async (req, res) => {
+  const [rows] = await pool.execute("SELECT user_id FROM users WHERE username = ?", [String(req.query.username || "").trim()]);
+  res.json({ available: rows.length === 0 });
 }));
 
 app.post("/api/auth/login", wrap(async (req, res) => {
@@ -302,6 +325,12 @@ app.get("/api/dashboard/summary", requireLogin, requireAdmin, wrap(async (req, r
     equipment_available: Number(stock[0].available),
   });
 }));
+
+// ---------- Page not found ----------
+app.use((req, res) => {
+  if (req.path.startsWith("/api/")) return res.status(404).json({ message: "Not found." });
+  res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
+});
 
 // ---------- Start ----------
 // First run only: create one admin and one student so you can log in.
