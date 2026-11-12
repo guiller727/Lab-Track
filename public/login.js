@@ -4,14 +4,9 @@ if (getToken() && savedUser) window.location.href = NAV[savedUser.role][0][1];
 
 // ----- Switch between "Sign in" and "Register" -----
 function showMode(mode) {
-  const isLogin = mode === "login";
-  $("loginForm").hidden = !isLogin;
-  $("registerForm").hidden = isLogin;
-  $("panelLogin").hidden = !isLogin;
-  $("panelRegister").hidden = isLogin;
-  $("authTitle").textContent = isLogin ? "Sign In to LabTrack" : "Create Account";
-  $("authSub").textContent = isLogin ? "Use your username and password" : "Student accounts only";
-  say("");
+  $("authShell").dataset.mode = mode;           // that's all: the CSS slides the panel and fades the forms
+  say("", "", "loginMsg");
+  say("", "", "regMsg");
 }
 $("toRegister").addEventListener("click", () => showMode("register"));
 $("toLogin").addEventListener("click", () => showMode("login"));
@@ -27,7 +22,7 @@ $("loginForm").addEventListener("submit", async (event) => {
     sessionStorage.setItem("token", result.token);
     sessionStorage.setItem("user", JSON.stringify(result.user));
     window.location.href = NAV[result.user.role][0][1];   // admin -> Dashboard, student -> Equipment
-  } catch (error) { say(error.message, "error"); }
+  } catch (error) { say(error.message, "error", "loginMsg"); }
 });
 
 // ----- Duplicate username: shown in red under the field -----
@@ -57,13 +52,13 @@ $("registerForm").addEventListener("submit", async (event) => {
     });
     $("registerForm").reset();
     showMode("login");
-    say(result.message, "success");
+    say(result.message, "success", "loginMsg");
   } catch (error) {
     if (error.status === 409) {                 // 409 = username already exists
       flagUsername(error.message);
       $("regUser").focus();
     } else {
-      say(error.message, "error");
+      say(error.message, "error", "regMsg");
     }
   }
 });
@@ -88,5 +83,5 @@ document.querySelectorAll('input[type="password"]').forEach((input) => {
 
 // Message after the automatic inactivity logout.
 if (new URLSearchParams(window.location.search).get("reason") === "idle") {
-  say("You were logged out because of inactivity. Please log in again.");
+  say("You were logged out because of inactivity. Please log in again.", "", "loginMsg");
 }
