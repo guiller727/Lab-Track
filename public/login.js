@@ -2,17 +2,19 @@
 const savedUser = getUser();
 if (getToken() && savedUser) window.location.href = NAV[savedUser.role][0][1];
 
-// ----- Switch between "Log in" and "Student sign up" -----
-function showTab(which) {
-  const isLogin = which === "login";
+// ----- Switch between "Sign in" and "Register" -----
+function showMode(mode) {
+  const isLogin = mode === "login";
   $("loginForm").hidden = !isLogin;
   $("registerForm").hidden = isLogin;
-  $("tabLogin").classList.toggle("active", isLogin);
-  $("tabRegister").classList.toggle("active", !isLogin);
+  $("panelLogin").hidden = !isLogin;
+  $("panelRegister").hidden = isLogin;
+  $("authTitle").textContent = isLogin ? "Sign In to LabTrack" : "Create Account";
+  $("authSub").textContent = isLogin ? "Use your username and password" : "Student accounts only";
   say("");
 }
-$("tabLogin").addEventListener("click", () => showTab("login"));
-$("tabRegister").addEventListener("click", () => showTab("register"));
+$("toRegister").addEventListener("click", () => showMode("register"));
+$("toLogin").addEventListener("click", () => showMode("login"));
 
 // ----- Log in -----
 $("loginForm").addEventListener("submit", async (event) => {
@@ -28,6 +30,23 @@ $("loginForm").addEventListener("submit", async (event) => {
   } catch (error) { say(error.message, "error"); }
 });
 
+// ----- Duplicate username: shown in red under the field -----
+function flagUsername(text) {
+  $("regUserError").textContent = text;
+  $("regUser").classList.toggle("invalid", Boolean(text));
+}
+
+// Checks as soon as the student leaves the username box.
+$("regUser").addEventListener("blur", async () => {
+  const username = $("regUser").value.trim();
+  if (!username) return;
+  try {
+    const result = await api("/api/auth/username-available?username=" + encodeURIComponent(username));
+    if (!result.available) flagUsername("That username is already taken.");
+  } catch (error) { console.error(error); }
+});
+$("regUser").addEventListener("input", () => flagUsername(""));   // clear the flag while typing
+
 // ----- Sign up (always creates a student) -----
 $("registerForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -37,9 +56,16 @@ $("registerForm").addEventListener("submit", async (event) => {
       body: JSON.stringify({ name: $("regName").value, username: $("regUser").value, password: $("regPass").value }),
     });
     $("registerForm").reset();
-    showTab("login");
+    showMode("login");
     say(result.message, "success");
-  } catch (error) { say(error.message, "error"); }
+  } catch (error) {
+    if (error.status === 409) {                 // 409 = username already exists
+      flagUsername(error.message);
+      $("regUser").focus();
+    } else {
+      say(error.message, "error");
+    }
+  }
 });
 
 // ----- Eye button: show / hide the password -----
@@ -48,11 +74,7 @@ const EYE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" st
   <circle cx="12" cy="12" r="3"/><line class="slash" x1="3" y1="3" x2="21" y2="21"/></svg>`;
 
 document.querySelectorAll('input[type="password"]').forEach((input) => {
-  const wrap = document.createElement("div");
-  wrap.className = "password-wrap";
-  input.parentNode.insertBefore(wrap, input);   // put a wrapper where the input is...
-  wrap.appendChild(input);                      // ...and move the input inside it
-
+  input.classList.add("has-toggle");            // leave room for the eye on the right
   const eye = makeButton("", "eye", () => {
     const hidden = input.type === "password";
     input.type = hidden ? "text" : "password";
@@ -61,7 +83,7 @@ document.querySelectorAll('input[type="password"]').forEach((input) => {
   });
   eye.innerHTML = EYE_ICON;
   eye.setAttribute("aria-label", "Show password");
-  wrap.appendChild(eye);
+  input.parentNode.appendChild(eye);            // the eye sits inside the same .input-icon box
 });
 
 // Message after the automatic inactivity logout.
