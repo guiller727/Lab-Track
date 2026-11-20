@@ -174,18 +174,30 @@ function checkEquipment(b) {
   return null;   // null = no problem
 }
 const equipmentValues = (b) => [
-  b.name.trim(), b.category.trim(), (b.description || "").trim(), (b.location || "").trim(),
+  b.name.trim(), b.category.trim(), (b.location || "").trim(),
   Number(b.total_quantity), Number(b.available_quantity), b.item_condition || "Good",
 ];
 
-// Anyone logged in can view. Optional filters: ?search=...&category=...
+// Works out which page to show: { page, pages, offset } (10 rows per page).
+function pageInfo(req, total) {
+  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const page = Math.min(pages, Math.max(1, parseInt(req.query.page, 10) || 1));
+  return { page, pages, offset: (page - 1) * PER_PAGE };
+}
+
+// Anyone logged in can view, 10 per page. Optional filters: ?search=...&category=...&page=...
 app.get("/api/equipment", requireLogin, wrap(async (req, res) => {
-  let sql = "SELECT * FROM equipment WHERE status = 'active'";
+  let where = "status = 'active'";
   const params = [];
-  if (req.query.search) { sql += " AND name LIKE ?"; params.push("%" + req.query.search + "%"); }
-  if (req.query.category) { sql += " AND category = ?"; params.push(req.query.category); }
-  const [rows] = await pool.execute(sql + " ORDER BY category, name", params);
-  res.json(rows);
+  if (req.query.search) { where += " AND name LIKE ?"; params.push("%" + req.query.search + "%"); }
+  if (req.query.category) { where += " AND category = ?"; params.push(req.query.category); }
+
+  const [[count]] = await pool.execute(`SELECT COUNT(*) AS n FROM equipment WHERE ${where}`, params);
+  const total = Number(count.n);
+  const { page, pages, offset } = pageInfo(req, total);
+  const [rows] = await pool.execute(
+    `SELECT * FROM equipment WHERE ${where} ORDER BY category, name LIMIT ${PER_PAGE} OFFSET ${offset}`, params);
+  res.json({ rows, page, pages, total });
 }));
 
 app.get("/api/equipment-categories", requireLogin, wrap(async (req, res) => {
@@ -204,8 +216,8 @@ app.post("/api/equipment", requireLogin, requireAdmin, wrap(async (req, res) => 
   const problem = checkEquipment(req.body);
   if (problem) return res.status(400).json({ message: problem });
   const [result] = await pool.execute(
-    `INSERT INTO equipment (name, category, description, location, total_quantity, available_quantity, item_condition)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`, equipmentValues(req.body));
+    `INSERT INTO equipment (name, category, location, total_quantity, available_quantity, item_condition)
+     VALUES (?, ?, ?, ?, ?, ?)`, equipmentValues(req.body));
   res.status(201).json({ message: "Equipment added.", equipment_id: result.insertId });
 }));
 
@@ -213,7 +225,7 @@ app.put("/api/equipment/:id", requireLogin, requireAdmin, wrap(async (req, res) 
   const problem = checkEquipment(req.body);
   if (problem) return res.status(400).json({ message: problem });
   const [result] = await pool.execute(
-    `UPDATE equipment SET name=?, category=?, description=?, location=?, total_quantity=?,
+    `UPDATE equipment SET name=?, category=?, location=?, total_quantity=?,
      available_quantity=?, item_condition=? WHERE equipment_id=?`, [...equipmentValues(req.body), req.params.id]);
   if (result.affectedRows === 0) return res.status(404).json({ message: "Equipment not found." });
   res.json({ message: "Equipment updated." });
@@ -234,18 +246,27 @@ app.delete("/api/equipment/:id", requireLogin, requireAdmin, wrap(async (req, re
 const REQUEST_SELECT = `SELECT r.request_id, r.quantity, r.status, r.reason,
     DATE_FORMAT(r.needed_until, '%Y-%m-%d') AS needed_until,
     DATE_FORMAT(r.request_date, '%Y-%m-%d') AS request_date,
-    u.name AS user_name, e.name AS equipment_name
+    u.name AS user_name, e.name AS equipment_name, e.category
   FROM borrow_requests r
+  JOIN users u ON u.user_id = r.user_id
+  JOIN equipment e ON e.equipment_id = r.equipment_id`;
+const REQUEST_JOINS = `FROM borrow_requests r
   JOIN users u ON u.user_id = r.user_id
   JOIN equipment e ON e.equipment_id = r.equipment_id`;
 
 // Sends ONE page (10 rows) of the requests that match "where".
+// Optional filters: ?search= (equipment or borrower name) and ?category=
 async function sendPage(req, res, where, params) {
-  const [[count]] = await pool.execute(`SELECT COUNT(*) AS n FROM borrow_requests r WHERE ${where}`, params);
+  params = [...params];
+  if (req.query.search) {
+    where += " AND (e.name LIKE ? OR u.name LIKE ?)";
+    params.push("%" + req.query.search + "%", "%" + req.query.search + "%");
+  }
+  if (req.query.category) { where += " AND e.category = ?"; params.push(req.query.category); }
+
+  const [[count]] = await pool.execute(`SELECT COUNT(*) AS n ${REQUEST_JOINS} WHERE ${where}`, params);
   const total = Number(count.n);
-  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
-  const page = Math.min(pages, Math.max(1, parseInt(req.query.page, 10) || 1));
-  const offset = (page - 1) * PER_PAGE;
+  const { page, pages, offset } = pageInfo(req, total);
   const [rows] = await pool.execute(
     `${REQUEST_SELECT} WHERE ${where} ORDER BY r.request_id DESC LIMIT ${PER_PAGE} OFFSET ${offset}`, params);
   res.json({ rows, page, pages, total });
@@ -359,7 +380,9 @@ app.get("/api/dashboard/summary", requireLogin, requireAdmin, wrap(async (req, r
   const n = (status) => count[status] || 0;
 
   const [stock] = await pool.execute(
-    "SELECT COALESCE(SUM(total_quantity),0) AS total, COALESCE(SUM(available_quantity),0) AS available FROM equipment WHERE status = 'active'");
+    `SELECT COUNT(*) AS items, COALESCE(SUM(total_quantity),0) AS total, COALESCE(SUM(available_quantity),0) AS available,
+       COALESCE(SUM(available_quantity = 0),0) AS out_of_stock
+     FROM equipment WHERE status = 'active'`);
   res.json({
     total_requests: Object.values(count).reduce((a, b) => a + b, 0),
     pending: n("pending"),
@@ -369,6 +392,8 @@ app.get("/api/dashboard/summary", requireLogin, requireAdmin, wrap(async (req, r
     resolved: n("resolved"),
     equipment_total: Number(stock[0].total),
     equipment_available: Number(stock[0].available),
+    equipment_items: Number(stock[0].items),
+    out_of_stock: Number(stock[0].out_of_stock),
   });
 }));
 
