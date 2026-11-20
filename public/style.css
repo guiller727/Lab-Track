@@ -353,7 +353,6 @@ label.btn-pill { display: inline-flex; }
   .topnav { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
   .nav-link { flex: 1; justify-content: center; padding: 8px 10px; }
 }
-}
 
 /* Phones: login card stacks (panel below Sign In, above Register; login.js slides it) */
 @media (max-width: 760px) {
