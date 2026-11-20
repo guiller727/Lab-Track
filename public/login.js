@@ -3,11 +3,74 @@ const savedUser = getUser();
 if (getToken() && savedUser) window.location.href = NAV[savedUser.role][0][1];
 
 // ----- Switch between "Sign in" and "Register" -----
-function showMode(mode) {
-  $("authShell").dataset.mode = mode;           // that's all: the CSS slides the panel and fades the forms
+// PC: changing data-mode is enough, the CSS slides the blue panel sideways and fades the forms.
+// Phones: the panel sits BELOW Sign In and ABOVE Register, so here we glide it up/down ourselves.
+const shell = $("authShell");
+const panel = document.querySelector(".auth-panel");
+const boxes = { login: document.querySelector(".auth-box-login"), register: document.querySelector(".auth-box-register") };
+const isPhone = () => window.matchMedia("(max-width: 760px)").matches;
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const SMOOTH = "cubic-bezier(0.22, 1, 0.36, 1)";
+let switching = false;                          // ignore extra taps while it animates
+
+function applyMode(mode) {
+  shell.dataset.mode = mode;
   say("", "", "loginMsg");
   say("", "", "regMsg");
+  // The hidden form can't be tabbed into
+  boxes.login.inert = mode !== "login";
+  boxes.register.inert = mode !== "register";
 }
+
+async function showMode(mode) {
+  const from = shell.dataset.mode;
+  if (from === mode) return;
+  if (!isPhone() || reducedMotion() || !panel.animate) return applyMode(mode);
+  if (switching) return;
+  switching = true;
+  try {
+    const oldBox = boxes[from];
+    const leavingRegister = from === "register";
+
+    // 1. Leaving Sign In: the form fades out first, drifting down.
+    if (!leavingRegister) {
+      await oldBox.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(24px)" }],
+        { duration: 260, easing: "ease-in", fill: "forwards" }).finished.catch(() => {});
+    } else {
+      // Leaving Register: keep "Create Account" where it is so it can slide away on top of the new layout.
+      oldBox.style.top = oldBox.offsetTop + "px";
+      oldBox.classList.add("auth-leaving");
+    }
+
+    // 2. Swap the layout; the blue panel glides from its old spot to the new one.
+    const before = panel.getBoundingClientRect().top;
+    applyMode(mode);
+    if (!leavingRegister) oldBox.getAnimations().forEach((a) => a.cancel());
+    const after = panel.getBoundingClientRect().top;
+    panel.animate([{ transform: `translateY(${before - after}px)` }, { transform: "translateY(0)" }],
+      { duration: 700, easing: "cubic-bezier(0.65, 0, 0.35, 1)" });
+
+    if (leavingRegister) {
+      oldBox.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-60px)" }],
+        { duration: 350, easing: "ease-out", fill: "forwards" }).finished.catch(() => {}).then(() => {
+        oldBox.classList.remove("auth-leaving");
+        oldBox.style.top = "";
+        oldBox.getAnimations().forEach((a) => a.cancel());
+      });
+    }
+
+    // 3. The new form slides in: Create Account rises from below, Sign In drops from above.
+    boxes[mode].animate(
+      [{ opacity: 0, transform: `translateY(${mode === "register" ? 60 : -60}px)` }, { opacity: 1, transform: "none" }],
+      { duration: 750, delay: leavingRegister ? 350 : 120, easing: SMOOTH, fill: "backwards" });
+
+    // Keep the top of the card in view
+    if (shell.getBoundingClientRect().top < 0) shell.scrollIntoView({ block: "start", behavior: "smooth" });
+  } finally {
+    switching = false;
+  }
+}
+applyMode("login");
 $("toRegister").addEventListener("click", () => showMode("register"));
 $("toLogin").addEventListener("click", () => showMode("login"));
 
