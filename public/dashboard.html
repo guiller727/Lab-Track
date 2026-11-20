@@ -11,23 +11,67 @@
 <script src="/common.js"></script>
 </head>
 <body>
-<header id="header"></header>
-<main>
-  <section>
-    <h2>Overview</h2>
-    <div class="stats" id="stats"></div>
-  </section>
+<div class="layout">
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="content">
+      <div class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Overview of the laboratory equipment and borrowing records.</p>
+        </div>
+        <a class="btn btn-primary" href="requests.html">Review requests</a>
+      </div>
 
-  <section class="responsive">
-    <h2>History</h2>
-    <p id="msg" class="msg" role="status"></p>
-    <table>
-      <thead><tr><th>Equipment</th><th>Qty</th><th>Borrower</th><th>Reason</th><th>Requested</th><th>Return by</th><th>Result</th></tr></thead>
-      <tbody id="historyList"></tbody>
-    </table>
-    <div class="pager" id="pager"></div>
-  </section>
-</main>
+      <p id="msg" class="msg" role="status"></p>
+
+      <!-- Stat cards (filled by dashboard.js) -->
+      <section class="stats-grid" id="stats"></section>
+
+      <!-- What is available right now -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Equipment availability</h2>
+            <p>Units on the shelf right now, per item.</p>
+          </div>
+          <a class="btn btn-outline btn-sm" href="index.html">Manage equipment</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Equipment</th><th>Category</th><th>Location</th><th>Available</th><th>Status</th></tr></thead>
+            <tbody id="equipList"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="equipPager"></div>
+      </section>
+
+      <!-- Finished requests -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>History</h2>
+            <p>Returned, rejected and resolved requests.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="search" type="search" placeholder="Search equipment or borrower" aria-label="Search history">
+          </div>
+          <select id="filterCategory" aria-label="Filter by category"><option value="">All categories</option></select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Equipment</th><th>Category</th><th>Qty</th><th>Borrower</th><th>Reason</th><th>Requested</th><th>Return by</th><th>Result</th></tr></thead>
+            <tbody id="historyList"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager"></div>
+      </section>
+    </main>
+  </div>
+</div>
 <script src="/dashboard.js"></script>
 </body>
 </html>
