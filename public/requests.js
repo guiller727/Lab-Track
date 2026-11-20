@@ -3,10 +3,14 @@ const isAdmin = user.role === "admin";
 let currentPage = 1;
 
 $("title").textContent = isAdmin ? "Active requests" : "My requests";
-$("adminHint").hidden = !isAdmin;
+$("hint").textContent = isAdmin
+  ? "Approve, reject, and mark returns. Finished requests move to the Dashboard history."
+  : "Your open requests. Returned items move to History.";
 $("actionHead").hidden = !isAdmin;              // only admins have action buttons
+if (!isAdmin) document.querySelector("thead th:nth-child(3)").remove();   // students don't need "Requested by"
+const COLUMNS = isAdmin ? 8 : 6;
 
-// ---------- Show one page of requests ----------
+// ---------- Show one page of requests (10 per page) ----------
 async function loadRequests(page = 1) {
   try {
     const data = await api("/api/borrow-requests?page=" + page);
@@ -15,16 +19,16 @@ async function loadRequests(page = 1) {
     const list = $("reqList");
     list.replaceChildren();
     if (data.rows.length === 0) {
-      showEmpty(list, 8, isAdmin ? "No active requests." : "No requests yet. Go to Equipment and tap Request.");
+      showEmpty(list, COLUMNS, isAdmin ? "No active requests." : "No requests yet. Go to Equipment and tap Request.");
     }
 
     const today = new Date().toISOString().slice(0, 10);
     data.rows.forEach((r) => {
       const row = document.createElement("tr");
-      addCell(row, "Equipment", r.equipment_name);
+      addCell(row, "Equipment", r.equipment_name).className = "title";
       addCell(row, "Qty", r.quantity);
-      addCell(row, "Requested by", r.user_name);
-      addCell(row, "Reason", r.reason || "-");
+      if (isAdmin) addCell(row, "Requested by", r.user_name);
+      addCell(row, "Reason", r.reason || "-").classList.add("reason");
       addCell(row, "Requested", r.request_date);
       addCell(row, "Return by", r.needed_until);
 
@@ -32,9 +36,12 @@ async function loadRequests(page = 1) {
       addBadge(row, "Status", overdue ? "overdue" : r.status, overdue ? "overdue" : r.status);
 
       if (isAdmin) {
-        const actions = addCell(row, "", "");
-        actions.className = "row-actions";
-        showActions(actions, r);
+        const cell = addCell(row, "", "");
+        cell.className = "row-actions";
+        const box = document.createElement("div");
+        box.className = "actions";
+        cell.appendChild(box);
+        showActions(box, r);
       }
       list.appendChild(row);
     });
@@ -46,24 +53,27 @@ async function loadRequests(page = 1) {
 function showActions(box, r) {
   box.replaceChildren();
   if (r.status === "pending") {
-    box.append(makeButton("Approve", "good", () => act(r.request_id, "approve")),
-               makeButton("Reject", "danger", () => act(r.request_id, "reject")));
+    box.append(makeButton("Approve", "btn btn-success btn-sm", () => act(r.request_id, "approve")),
+               makeButton("Reject", "btn btn-outline-danger btn-sm", () => act(r.request_id, "reject")));
   }
   if (r.status === "approved") {
-    box.appendChild(makeButton("Mark returned", "primary", () => askCondition(box, r)));
+    box.appendChild(makeButton("Mark returned", "btn btn-primary btn-sm", () => askCondition(box, r)));
   }
   if (r.status === "damaged") {
-    box.appendChild(makeButton("Mark resolved", "good", () => act(r.request_id, "resolve")));
+    box.appendChild(makeButton("Mark resolved", "btn btn-success btn-sm", () => act(r.request_id, "resolve")));
   }
 }
 
 // After "Mark returned": was the item good or damaged?
 function askCondition(box, r) {
+  const question = document.createElement("span");
+  question.className = "ask";
+  question.textContent = "Condition?";
   box.replaceChildren(
-    "Condition?",
-    makeButton("Good", "good", () => act(r.request_id, "return", { condition: "good" })),
-    makeButton("Damaged", "danger", () => act(r.request_id, "return", { condition: "damaged" })),
-    makeButton("Cancel", "", () => showActions(box, r))
+    question,
+    makeButton("Good", "btn btn-success btn-sm", () => act(r.request_id, "return", { condition: "good" })),
+    makeButton("Damaged", "btn btn-danger btn-sm", () => act(r.request_id, "return", { condition: "damaged" })),
+    makeButton("Cancel", "btn btn-outline btn-sm", () => showActions(box, r))
   );
 }
 
