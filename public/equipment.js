@@ -1,57 +1,77 @@
-const user = setupPage();                       // checks login + draws the header
+const user = setupPage();                       // checks login + draws the top bar
 const isAdmin = user.role === "admin";
+let currentPage = 1;
 
-$("adminPanel").hidden = !isAdmin;              // admins get the add/edit form
-$("requestPanel").hidden = isAdmin;             // students get the request form
+$("addBtn").hidden = !isAdmin;                  // admins get "+ Add equipment"
+$("pageHint").textContent = isAdmin
+  ? "Add, edit and archive laboratory equipment."
+  : "Browse the equipment and tap Request on what you need.";
 
-// ---------- Show the equipment table ----------
-async function loadEquipment() {
+// Every "Cancel" and "×" button closes its pop-up.
+document.querySelectorAll("[data-close]").forEach((button) =>
+  button.addEventListener("click", () => button.closest("dialog").close()));
+
+// ---------- Show one page of the equipment table (10 per page) ----------
+async function loadEquipment(page = 1) {
   try {
-    const params = new URLSearchParams({ search: $("search").value.trim(), category: $("filterCategory").value });
-    const items = await api("/api/equipment?" + params);
+    const params = new URLSearchParams({ page, search: $("search").value.trim(), category: $("filterCategory").value });
+    const data = await api("/api/equipment?" + params);
+    currentPage = data.page;
 
     const list = $("equipList");
     list.replaceChildren();
-    if (items.length === 0) showEmpty(list, 7, "No equipment found.");
+    if (data.rows.length === 0) showEmpty(list, 7, "No equipment found.");
 
-    items.forEach((item) => {
+    data.rows.forEach((item) => {
       const row = document.createElement("tr");
-      addCell(row, "Name", item.name);
+      addCell(row, "Name", item.name).className = "title";
       addCell(row, "Category", item.category);
       addCell(row, "Location", item.location || "-");
-      addCell(row, "Available", item.available_quantity + " / " + item.total_quantity);
-      addCell(row, "Condition", item.item_condition);
+      addQtyCell(row, "Available", item);
+      addBadge(row, "Condition", item.item_condition.toLowerCase().replace(" ", "-"), item.item_condition);
       const inStock = item.available_quantity > 0;
       addBadge(row, "Status", inStock ? "ok" : "none", inStock ? "Available" : "Unavailable");
 
-      const actions = addCell(row, "", "");
-      actions.className = "row-actions";
+      const cell = addCell(row, "", "");
+      cell.className = "row-actions";
+      const actions = document.createElement("div");
+      actions.className = "actions";
       if (isAdmin) {
-        actions.append(makeButton("Edit", "", () => startEdit(item)),
-                       makeButton("Archive", "danger", () => archiveItem(item)));
+        actions.append(makeButton("Edit", "btn btn-outline btn-sm", () => startEdit(item)),
+                       makeButton("Archive", "btn btn-outline-danger btn-sm", () => archiveItem(item)));
       } else {
-        const requestBtn = makeButton("Request", "primary", () => pickItem(item));
+        const requestBtn = makeButton(inStock ? "Request" : "Unavailable", "btn btn-primary btn-sm", () => pickItem(item));
         requestBtn.disabled = !inStock;
         actions.appendChild(requestBtn);
       }
+      cell.appendChild(actions);
       list.appendChild(row);
     });
+    showPager(data, loadEquipment);
   } catch (error) { say(error.message, "error"); }
 }
 
-// ---------- Category dropdown ----------
+// ---------- Category dropdown (+ suggestions in the admin form) ----------
 async function loadCategories() {
-  try {
-    const categories = await api("/api/equipment-categories");
-    const select = $("filterCategory");
-    const chosen = select.value;
-    select.replaceChildren(new Option("All categories", ""));
-    categories.forEach((category) => select.appendChild(new Option(category, category)));
-    select.value = categories.includes(chosen) ? chosen : "";
-  } catch (error) { console.error(error); }
+  const categories = await loadCategoryOptions("filterCategory");
+  $("categoryList").replaceChildren(...categories.map((c) => new Option(c)));
 }
 
 // ---------- Admin: add / edit / archive ----------
+function openForm() {
+  say("", "", "equipMsg");
+  $("equipDialog").showModal();
+}
+
+$("addBtn").addEventListener("click", () => {
+  $("equipForm").reset();
+  $("equipId").value = "";
+  $("formTitle").textContent = "Add equipment";
+  $("saveBtn").textContent = "Add equipment";
+  openForm();
+  $("name").focus();
+});
+
 function startEdit(item) {                      // copy the item into the form
   $("equipId").value = item.equipment_id;
   $("name").value = item.name;
@@ -60,21 +80,10 @@ function startEdit(item) {                      // copy the item into the form
   $("condition").value = item.item_condition;
   $("total").value = item.total_quantity;
   $("available").value = item.available_quantity;
-  $("description").value = item.description || "";
   $("formTitle").textContent = "Edit equipment";
   $("saveBtn").textContent = "Save changes";
-  $("cancelBtn").hidden = false;
-  $("equipForm").scrollIntoView({ behavior: "smooth" });
+  openForm();
 }
-
-function resetForm() {
-  $("equipForm").reset();
-  $("equipId").value = "";
-  $("formTitle").textContent = "Add equipment";
-  $("saveBtn").textContent = "Add equipment";
-  $("cancelBtn").hidden = true;
-}
-$("cancelBtn").addEventListener("click", resetForm);
 
 $("equipForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -86,18 +95,17 @@ $("equipForm").addEventListener("submit", async (event) => {
     item_condition: $("condition").value,
     total_quantity: Number($("total").value),
     available_quantity: Number($("available").value),
-    description: $("description").value.trim(),
   };
   try {
     const result = await api(id ? "/api/equipment/" + id : "/api/equipment", {
       method: id ? "PUT" : "POST",
       body: JSON.stringify(equipment),
     });
+    $("equipDialog").close();
     say(result.message, "success");
-    resetForm();
-    await loadEquipment();
+    await loadEquipment(id ? currentPage : 1);
     await loadCategories();
-  } catch (error) { say(error.message, "error"); }
+  } catch (error) { say(error.message, "error", "equipMsg"); }
 });
 
 async function archiveItem(item) {
@@ -105,31 +113,28 @@ async function archiveItem(item) {
   try {
     const result = await api("/api/equipment/" + item.equipment_id, { method: "DELETE" });
     say(result.message, "success");
-    await loadEquipment();
+    await loadEquipment(currentPage);
     await loadCategories();
   } catch (error) { say(error.message, "error"); }
 }
 
 // ---------- Student: send a borrow request ----------
+$("reqDate").min = new Date().toISOString().slice(0, 10);   // no past dates
+
 function pickItem(item) {                       // "Request" button on a row
+  $("requestForm").reset();
+  say("", "", "reqMsg");
   $("reqItemId").value = item.equipment_id;
-  $("reqItemName").value = item.name + " (" + item.available_quantity + " available)";
+  $("reqItemName").textContent = item.name;
+  $("reqItemInfo").textContent = item.category + " · " + (item.location || "No location") + " · " + item.available_quantity + " available";
   $("reqQty").max = item.available_quantity;
   $("reqQty").value = 1;
-  $("requestPanel").scrollIntoView({ behavior: "smooth" });
+  $("requestDialog").showModal();
   $("reqReason").focus();
 }
 
-function clearRequest() {
-  $("requestForm").reset();
-  $("reqItemId").value = "";
-}
-$("reqClear").addEventListener("click", clearRequest);
-$("reqDate").min = new Date().toISOString().slice(0, 10);   // no past dates
-
 $("requestForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!$("reqItemId").value) { say("Tap Request on an item first.", "error"); return; }
   try {
     const result = await api("/api/borrow-requests", {
       method: "POST",
@@ -140,16 +145,14 @@ $("requestForm").addEventListener("submit", async (event) => {
         reason: $("reqReason").value.trim(),
       }),
     });
+    $("requestDialog").close();
     say(result.message + " Track it under Requests.", "success");
-    clearRequest();
-  } catch (error) { say(error.message, "error"); }
+  } catch (error) { say(error.message, "error", "reqMsg"); }
 });
 
-// ---------- Search + category filter reload the table ----------
-let timer;
-function reloadSoon() { clearTimeout(timer); timer = setTimeout(loadEquipment, 250); }   // wait while typing
-$("search").addEventListener("input", reloadSoon);
-$("filterCategory").addEventListener("change", loadEquipment);
+// ---------- Search + category filter reload the table from page 1 ----------
+$("search").addEventListener("input", whenTypingStops(() => loadEquipment(1)));
+$("filterCategory").addEventListener("change", () => loadEquipment(1));
 
 loadEquipment();
 loadCategories();
